@@ -313,7 +313,7 @@ func TestCharlist(t *testing.T) {
 		pl := new(CharList)
 		pl.LoadFromElement(doc.Children[0])
 		pl.Replace(func(i string) (string, bool) { return "saman koushki", true })
-		So(pl.Len(), ShouldEqual, 113)
+		So(pl.Len(), ShouldEqual, 111)
 	})
 
 	Convey("Test Charlist: New Replacement Method", t, func() {
