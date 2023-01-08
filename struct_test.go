@@ -36,7 +36,7 @@ func (n NIN) String() string {
 }
 
 type Cert struct {
-	Born time.Time
+	Born  time.Time
 	NIN   NIN
 	Image string
 }
@@ -58,7 +58,7 @@ type Person struct {
 	LastName string
 	Cert     *Cert
 	Address  Address
-	Weight int
+	Weight   int
 }
 
 func TestStructure(t *testing.T) {
@@ -76,8 +76,7 @@ func TestStructure(t *testing.T) {
 			},
 		}
 
-		m, err := NewStructure(saman)
-
+		m, err := NewStructure(&saman)
 		So(err, ShouldBeNil)
 		nin, err := m.Get(FieldQuery{
 			"Cert",
