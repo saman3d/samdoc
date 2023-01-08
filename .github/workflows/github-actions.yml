@@ -1,0 +1,82 @@
+# The following workflow provides an opinionated template you can customize for your own needs.
+#
+# If you are not an Octopus user, the "Push to Octopus", "Generate Octopus Deploy build information",
+# and "Create Octopus Release" steps can be safely deleted.
+#
+# To configure Octopus, set the OCTOPUS_API_TOKEN secret to the Octopus API key, and
+# set the OCTOPUS_SERVER_URL secret to the Octopus URL.
+#
+# Double check the "project" and "deploy_to" properties in the "Create Octopus Release" step
+# match your Octopus projects and environments.
+#
+# Get a trial Octopus instance from https://octopus.com/start
+
+name: Go Build
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: '0'
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.17
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.9.14
+      with:
+        versionSpec: 5.x
+    - id: determine_version
+      name: Determine Version
+      uses: gittools/actions/gitversion/execute@v0.9.14
+      with:
+        additionalArguments: /overrideconfig mode=Mainline
+    - name: Install Dependencies
+      run: go mod tidy
+      shell: bash
+    - name: List Dependencies
+      run: go list > dependencies.txt
+      shell: bash
+    - name: Collect Dependencies
+      uses: actions/upload-artifact@v2
+      with:
+        name: Dependencies
+        path: dependencies.txt
+    - name: List Dependency Updates
+      run: go list -u -m -f "{{if .Update}}{{.}}{{end}}" all > dependencyUpdates.txt
+      shell: bash
+    - name: Collect Dependency Updates
+      uses: actions/upload-artifact@v2
+      with:
+        name: Dependencies Updates
+        path: dependencyUpdates.txt
+    - name: Test
+      run: go test -race $(go list ./... | grep -v /vendor/) -v -coverprofile cover.out
+      run: go tool cover -func cover.out
+      shell: bash
+    - name: Collect Test Coverage
+      uses: actions/upload-artifact@v2
+      with:
+        name: Dependencies Updates
+        path: cover.out
+    - name: Log in to the Container registry
+      uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+      with:
+        images: |
+          ghcr.io/${{ github.repository }}
+    - name: Build and push Docker images
+      uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
