@@ -53,8 +53,7 @@ jobs:
         name: Dependencies Updates
         path: dependencyUpdates.txt
     - name: Test
-      run: go test -race $(go list ./... | grep -v /vendor/) -v -coverprofile cover.out
-      run: go tool cover -func cover.out
+      run: go test -race $(go list ./... | grep -v /vendor/) -v -coverprofile cover.out && go tool cover -func cover.out
       shell: bash
     - name: Collect Test Coverage
       uses: actions/upload-artifact@v2
