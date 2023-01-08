@@ -59,7 +59,7 @@ func (s *Structure) getFieldByName(v reflect.Value, field string) (reflect.Value
 }
 
 func (s *Structure) fieldToString(v reflect.Value) (string, error) {
-	return fmt.Sprintf("%v", v.String()), nil
+	return fmt.Sprintf("%v", v.Interface()), nil
 }
 
 type FieldQuery []string
