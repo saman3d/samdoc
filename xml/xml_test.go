@@ -18,7 +18,7 @@ func TestXML(t *testing.T) {
 
 	Convey("Test xml: read xml", t, func() {
 		data := `
-		<w:p w:rsidR="00000000" w:rsidDel="00000000" w:rsidP="00000000" w:rsidRDefault="00000000" w:rsidRPr="00000000" w14:paraId="0000000D">
+		<w:p w:rsidR="00000000" w:rsidDel="00000000" w:rsidP="00000000" w:rsidRDefault="00000000" w:rsidRPr="00000000" w14:paraId="0000000D" flex-direction="row">
 <w:pPr>
 <w:bidi w:val="1"/>
 <w:rPr/>
@@ -43,6 +43,7 @@ func TestXML(t *testing.T) {
 			{"w:rsidRDefault", "00000000"},
 			{"w:rsidRPr", "00000000"},
 			{"w14:paraId", "0000000D"},
+			{"flex-direction", "row"},
 		})
 
 		t, err = parser.Token()
