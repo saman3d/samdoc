@@ -11,8 +11,8 @@ import (
 // ---------------------
 
 var (
-	start_tag_reg        = regexp.MustCompile(`^[ \n\t]*?<([^\/?][a-zA-Z:\d]+)((?: {0,}[a-zA-Z:\d\-]+?="[^"]*?")+|)(?:[^\/]|)>`)
-	first_start_tag_reg  = regexp.MustCompile(`(?s)^.{0,}?<([^/?][a-zA-Z:\d]+)((?: {0,}[a-zA-Z:\d\-]+?="[^"]*?")+|)(?:[^/]|)>`)
+	start_tag_reg        = regexp.MustCompile(`^[ \n\t]*?<([^\/?]*?[a-zA-Z:\d]+)((?: {0,}[a-zA-Z:\d\-]+?="[^"]*?")+|)(?:[^\/]|)>`)
+	first_start_tag_reg  = regexp.MustCompile(`(?s)^.{0,}?<([^/?]*?[a-zA-Z:\d]+)((?: {0,}[a-zA-Z:\d\-]+?="[^"]*?")+|)(?:[^/]|)>`)
 	end_tag_reg          = regexp.MustCompile(`^</([a-zA-Z:\d]+?)>`)
 	self_closing_tag_reg = regexp.MustCompile(`(?s)^[ \n\t]*?(<.+?/>)`)
 	chardata_reg         = regexp.MustCompile(`(?s)^(.+?)(?:<)`)
@@ -73,7 +73,7 @@ type CharData string
 func (xp *XMLDecoder) Token() (Token, error) {
 	var till = SearchSize + xp.head
 	if len(xp.b)-1 < xp.head+SearchSize {
-		till = len(xp.b) - 1
+		till = len(xp.b)
 	}
 	matches := start_tag_reg.FindStringSubmatch(string(xp.b[xp.head:till]))
 	if len(matches) != 0 {
