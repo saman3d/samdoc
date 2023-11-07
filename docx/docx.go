@@ -3,7 +3,9 @@ package docx
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -18,13 +20,29 @@ type ZipInMemory struct {
 	data *zip.Reader
 }
 
+type DocImage struct {
+	Name        string
+	Fingerprint string
+}
+
+type DocImageList map[DocImage]string
+
+func (d DocImageList) Has(fingerprint string) bool {
+	for i, _ := range d {
+		if i.Fingerprint == fingerprint {
+			return true
+		}
+	}
+	return false
+}
+
 type Docx struct {
 	zipReader  *zip.Reader
 	proccessor *Processor
 	content    []byte
 	headers    map[string][]byte
 	footers    map[string][]byte
-	images     map[string]string
+	images     DocImageList
 }
 
 func newDocx(reader *zip.Reader) (*Docx, error) {
@@ -79,12 +97,33 @@ func (d *Docx) loadHeadersAndFooters() error {
 }
 
 func (d *Docx) loadImageFilenames() {
-	d.images = make(map[string]string)
+	d.images = make(map[DocImage]string)
 	for _, f := range d.zipReader.File {
 		if strings.HasPrefix(f.Name, "word/media/") {
-			d.images[f.Name] = ""
+			fingerprint := zipFileToFingerprint(f)
+			if fingerprint != "" {
+				docImage := DocImage{
+					Name:        f.Name,
+					Fingerprint: fingerprint,
+				}
+				d.images[docImage] = ""
+			}
 		}
 	}
+}
+
+func zipFileToFingerprint(f *zip.File) string {
+	r, err := f.Open()
+	if nil == err {
+		data := streamToByte(r)
+		if nil == err {
+			h := sha256.New()
+			if _, err := h.Write(data); err == nil {
+				return fmt.Sprintf("%x", h.Sum(nil))
+			}
+		}
+	}
+	return ""
 }
 
 func (d *Docx) WriteToFile(path string) (err error) {
@@ -118,13 +157,19 @@ func (d *Docx) Save(ioWriter io.Writer) (err error) {
 			writer.Write([]byte(d.headers[file.Name]))
 		} else if strings.Contains(file.Name, "footer") && len(d.footers[file.Name]) != 0 {
 			writer.Write([]byte(d.footers[file.Name]))
-		} else if strings.HasPrefix(file.Name, "word/media/") && d.images[file.Name] != "" {
-			newImage, err := os.Open(d.images[file.Name])
-			if err != nil {
-				return err
+		} else if strings.HasPrefix(file.Name, "word/media/") {
+			fileDocImage := DocImage{
+				Name:        file.Name,
+				Fingerprint: zipFileToFingerprint(file),
 			}
-			writer.Write(streamToByte(newImage))
-			newImage.Close()
+			if image, ok := d.images[fileDocImage]; ok {
+				newImage, err := os.Open(image)
+				if err != nil {
+					return err
+				}
+				writer.Write(streamToByte(newImage))
+				newImage.Close()
+			}
 		} else {
 			writer.Write(streamToByte(readCloser))
 		}
@@ -157,10 +202,22 @@ func (d *Docx) Replace(f ReplacerFunc) error {
 	return nil
 }
 
-func (d *Docx) ReplaceImage(oldImage string, newImage string) (err error) {
-	if _, ok := d.images[oldImage]; ok {
-		d.images[oldImage] = newImage
-		return nil
+func (d *Docx) ReplaceImageByImageName(oldImageName string, newImageName string) (err error) {
+	for image := range d.images {
+		if image.Name == oldImageName {
+			d.images[image] = newImageName
+			return nil
+		}
+	}
+	return ErrImageNotFound
+}
+
+func (d *Docx) ReplaceImageByFingerPrint(oldImageFingerprint string, newImageName string) (err error) {
+	for image := range d.images {
+		if image.Fingerprint == oldImageFingerprint {
+			d.images[image] = newImageName
+			return nil
+		}
 	}
 	return ErrImageNotFound
 }
