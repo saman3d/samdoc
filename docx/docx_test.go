@@ -1,6 +1,8 @@
 package docx
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -11,7 +13,8 @@ import (
 const testFile = "./TestDocument.docx"
 const testFileResult = "./TestDocumentResult.docx"
 const testOldImage = "word/media/image1.png"
-const testNewImage = "./TestImage.png"
+const newTestImage = "./NewTestImage.png"
+const oldTestImage = "./OldTestImage.png"
 
 func ReadFile(path string) (io.ReadCloser, error) {
 	f, err := os.Open(path)
@@ -21,23 +24,60 @@ func ReadFile(path string) (io.ReadCloser, error) {
 	return f, nil
 }
 
-func TestReplaceImage(t *testing.T) {
+func TestReplaceImageByImageName(t *testing.T) {
+	readerTestFile, err := ReadFile(testFile)
+	assert.Nil(t, err)
+	assert.NotNil(t, readerTestFile)
+	testFileTemplate, err := NewTemplate(readerTestFile)
+	assert.Nil(t, err)
+	assert.NotNil(t, testFileTemplate)
+	testFileTemplate.File.ReplaceImageByImageName(testOldImage, newTestImage)
+	testFileTemplate.File.WriteToFile(testFileResult)
+
+	readerTestFileResult, err := ReadFile(testFileResult)
+	assert.Nil(t, err)
+	assert.NotNil(t, readerTestFileResult)
+	testFileResultTemplate, err := NewTemplate(readerTestFileResult)
+	assert.Nil(t, err)
+	assert.NotNil(t, testFileResultTemplate)
+
+	newTestImageFingerprint := FilePathToFingerprint(newTestImage)
+	assert.NotEqual(t, "", newTestImageFingerprint)
+	assert.Equal(t, true, testFileResultTemplate.File.images.Has(newTestImageFingerprint))
+}
+
+func TestReplaceImageByFingerPrint(t *testing.T) {
 	reader, err := ReadFile(testFile)
 	assert.Nil(t, err)
 	assert.NotNil(t, reader)
 	tmp, err := NewTemplate(reader)
 	assert.Nil(t, err)
 	assert.NotNil(t, tmp)
-	tmp.File.ReplaceImage(testOldImage, testNewImage)
+	tmp.File.ReplaceImageByFingerPrint(FilePathToFingerprint(oldTestImage), newTestImage)
 	tmp.File.WriteToFile(testFileResult)
 
-	reader, err = ReadFile(testFileResult)
+	readerTestFileResult, err := ReadFile(testFileResult)
 	assert.Nil(t, err)
-	assert.NotNil(t, reader)
-	tmp, err = NewTemplate(reader)
+	assert.NotNil(t, readerTestFileResult)
+	testFileResultTemplate, err := NewTemplate(readerTestFileResult)
 	assert.Nil(t, err)
-	assert.NotNil(t, tmp)
+	assert.NotNil(t, testFileResultTemplate)
 
-	_, ok := tmp.File.images[testOldImage]
-	assert.Equal(t, true, ok)
+	newTestImageFingerprint := FilePathToFingerprint(newTestImage)
+	assert.NotEqual(t, "", newTestImageFingerprint)
+	assert.Equal(t, true, testFileResultTemplate.File.images.Has(newTestImageFingerprint))
+}
+
+func FilePathToFingerprint(path string) string {
+	file, err := os.Open(path)
+	if nil == err {
+		data := streamToByte(file)
+		if nil == err {
+			h := sha256.New()
+			if _, err := h.Write(data); err == nil {
+				return fmt.Sprintf("%x", h.Sum(nil))
+			}
+		}
+	}
+	return ""
 }
