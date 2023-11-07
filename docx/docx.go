@@ -11,6 +11,7 @@ import (
 
 var (
 	ErrCouldntFindWordDoc = errors.New("invalid docx file, couldn't find word document xml")
+	ErrImageNotFound      = errors.New("image not found")
 )
 
 type ZipInMemory struct {
@@ -23,6 +24,7 @@ type Docx struct {
 	content    []byte
 	headers    map[string][]byte
 	footers    map[string][]byte
+	images     map[string]string
 }
 
 func newDocx(reader *zip.Reader) (*Docx, error) {
@@ -38,6 +40,7 @@ func (d *Docx) load() error {
 	if err != nil {
 		return err
 	}
+	d.loadImageFilenames()
 	err = d.loadHeadersAndFooters()
 	return err
 }
@@ -75,6 +78,26 @@ func (d *Docx) loadHeadersAndFooters() error {
 	return nil
 }
 
+func (d *Docx) loadImageFilenames() {
+	d.images = make(map[string]string)
+	for _, f := range d.zipReader.File {
+		if strings.HasPrefix(f.Name, "word/media/") {
+			d.images[f.Name] = ""
+		}
+	}
+}
+
+func (d *Docx) WriteToFile(path string) (err error) {
+	var target *os.File
+	target, err = os.Create(path)
+	if err != nil {
+		return
+	}
+	defer target.Close()
+	err = d.Save(target)
+	return
+}
+
 func (d *Docx) Save(ioWriter io.Writer) (err error) {
 	w := zip.NewWriter(ioWriter)
 	for _, file := range d.zipReader.File {
@@ -95,6 +118,13 @@ func (d *Docx) Save(ioWriter io.Writer) (err error) {
 			writer.Write([]byte(d.headers[file.Name]))
 		} else if strings.Contains(file.Name, "footer") && len(d.footers[file.Name]) != 0 {
 			writer.Write([]byte(d.footers[file.Name]))
+		} else if strings.HasPrefix(file.Name, "word/media/") && d.images[file.Name] != "" {
+			newImage, err := os.Open(d.images[file.Name])
+			if err != nil {
+				return err
+			}
+			writer.Write(streamToByte(newImage))
+			newImage.Close()
 		} else {
 			writer.Write(streamToByte(readCloser))
 		}
@@ -125,6 +155,14 @@ func (d *Docx) Replace(f ReplacerFunc) error {
 	}
 
 	return nil
+}
+
+func (d *Docx) ReplaceImage(oldImage string, newImage string) (err error) {
+	if _, ok := d.images[oldImage]; ok {
+		d.images[oldImage] = newImage
+		return nil
+	}
+	return ErrImageNotFound
 }
 
 func Open(data io.ReaderAt, size int64) (*Docx, error) {
