@@ -31,7 +31,7 @@ func TestReplaceImageByImageName(t *testing.T) {
 	testFileTemplate, err := NewTemplate(readerTestFile)
 	assert.Nil(t, err)
 	assert.NotNil(t, testFileTemplate)
-	testFileTemplate.File.ReplaceImageByImageName(testOldImage, newTestImage)
+	testFileTemplate.File.ReplaceImageByImageName(testOldImage, filePathToReader(newTestImage))
 	testFileTemplate.File.WriteToFile(testFileResult)
 
 	readerTestFileResult, err := ReadFile(testFileResult)
@@ -41,7 +41,7 @@ func TestReplaceImageByImageName(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, testFileResultTemplate)
 
-	newTestImageFingerprint := FilePathToFingerprint(newTestImage)
+	newTestImageFingerprint := filePathToFingerprint(newTestImage)
 	assert.NotEqual(t, "", newTestImageFingerprint)
 	assert.Equal(t, true, testFileResultTemplate.File.images.Has(newTestImageFingerprint))
 }
@@ -53,7 +53,7 @@ func TestReplaceImageByFingerPrint(t *testing.T) {
 	tmp, err := NewTemplate(reader)
 	assert.Nil(t, err)
 	assert.NotNil(t, tmp)
-	tmp.File.ReplaceImageByFingerPrint(FilePathToFingerprint(oldTestImage), newTestImage)
+	tmp.File.ReplaceImageByFingerPrint(filePathToFingerprint(oldTestImage), filePathToReader(newTestImage))
 	tmp.File.WriteToFile(testFileResult)
 
 	readerTestFileResult, err := ReadFile(testFileResult)
@@ -63,12 +63,12 @@ func TestReplaceImageByFingerPrint(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, testFileResultTemplate)
 
-	newTestImageFingerprint := FilePathToFingerprint(newTestImage)
+	newTestImageFingerprint := filePathToFingerprint(newTestImage)
 	assert.NotEqual(t, "", newTestImageFingerprint)
 	assert.Equal(t, true, testFileResultTemplate.File.images.Has(newTestImageFingerprint))
 }
 
-func FilePathToFingerprint(path string) string {
+func filePathToFingerprint(path string) string {
 	file, err := os.Open(path)
 	if nil == err {
 		data := streamToByte(file)
@@ -80,4 +80,12 @@ func FilePathToFingerprint(path string) string {
 		}
 	}
 	return ""
+}
+
+func filePathToReader(path string) io.Reader {
+	file, err := os.Open(path)
+	if nil == err {
+		return file
+	}
+	return nil
 }
