@@ -158,20 +158,27 @@ func (d *Docx) Save(ioWriter io.Writer) (err error) {
 			writer.Write([]byte(d.headers[file.Name]))
 		} else if strings.Contains(file.Name, "footer") && len(d.footers[file.Name]) != 0 {
 			writer.Write([]byte(d.footers[file.Name]))
-		} else if strings.HasPrefix(file.Name, "word/media/") {
-			if reader, ok := d.images[NewDocImage(file)]; ok && nil != reader {
-				data, err := io.ReadAll(reader)
-				if err != nil {
-					continue
-				}
-				writer.Write(data)
+		} else if reader := getNewDocImageReader(d.images, file); reader != nil {
+			data, err := io.ReadAll(reader)
+			if err != nil {
+				continue
 			}
+			writer.Write(data)
 		} else {
 			writer.Write(streamToByte(readCloser))
 		}
 	}
 	w.Close()
 	return
+}
+
+func getNewDocImageReader(images DocImageList, f *zip.File) io.Reader {
+	if strings.HasPrefix(f.Name, "word/media/") {
+		if reader, ok := images[NewDocImage(f)]; ok && nil != reader {
+			return reader
+		}
+	}
+	return nil
 }
 
 func (d *Docx) Replace(f ReplacerFunc) error {
