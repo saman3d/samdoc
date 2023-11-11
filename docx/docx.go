@@ -16,29 +16,6 @@ var (
 	ErrImageNotFound      = errors.New("image not found")
 )
 
-type DocImage struct {
-	Name        string
-	Fingerprint string
-}
-
-func NewDocImage(file *zip.File) DocImage {
-	return DocImage{
-		Name:        file.Name,
-		Fingerprint: zipFileToFingerprint(file),
-	}
-}
-
-type DocImageList map[DocImage]io.Reader
-
-func (d DocImageList) Has(fingerprint string) bool {
-	for i, _ := range d {
-		if i.Fingerprint == fingerprint {
-			return true
-		}
-	}
-	return false
-}
-
 type Docx struct {
 	zipReader  *zip.Reader
 	proccessor *Processor
@@ -179,6 +156,8 @@ func (d *Docx) loadContent() error {
 			if err != nil {
 				return err
 			}
+			defer fo.Close()
+
 			d.content, err = io.ReadAll(fo)
 
 			return err
@@ -198,6 +177,8 @@ func (d *Docx) loadHeadersAndFooters() error {
 			if err != nil {
 				return err
 			}
+			defer fo.Close()
+
 			h, _ := io.ReadAll(fo)
 			d.headers[f.Name] = h
 		}
@@ -206,6 +187,8 @@ func (d *Docx) loadHeadersAndFooters() error {
 			if err != nil {
 				return err
 			}
+			defer fo.Close()
+
 			h, _ := io.ReadAll(fo)
 			d.footers[f.Name] = h
 		}
@@ -221,6 +204,29 @@ func (d *Docx) loadImageFilenames() {
 			d.images[NewDocImage(f)] = nil
 		}
 	}
+}
+
+type DocImage struct {
+	Name        string
+	Fingerprint string
+}
+
+func NewDocImage(file *zip.File) DocImage {
+	return DocImage{
+		Name:        file.Name,
+		Fingerprint: zipFileToFingerprint(file),
+	}
+}
+
+type DocImageList map[DocImage]io.Reader
+
+func (d DocImageList) Has(fingerprint string) bool {
+	for i, _ := range d {
+		if i.Fingerprint == fingerprint {
+			return true
+		}
+	}
+	return false
 }
 
 func streamToByte(stream io.Reader) []byte {
