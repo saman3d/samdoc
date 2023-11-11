@@ -25,7 +25,14 @@ type DocImage struct {
 	Fingerprint string
 }
 
-type DocImageList map[DocImage]string
+func NewDocImage(file *zip.File) DocImage {
+	return DocImage{
+		Name:        file.Name,
+		Fingerprint: zipFileToFingerprint(file),
+	}
+}
+
+type DocImageList map[DocImage]io.Reader
 
 func (d DocImageList) Has(fingerprint string) bool {
 	for i, _ := range d {
@@ -97,23 +104,17 @@ func (d *Docx) loadHeadersAndFooters() error {
 }
 
 func (d *Docx) loadImageFilenames() {
-	d.images = make(map[DocImage]string)
+	d.images = make(map[DocImage]io.Reader)
 	for _, f := range d.zipReader.File {
 		if strings.HasPrefix(f.Name, "word/media/") {
-			fingerprint := zipFileToFingerprint(f)
-			if fingerprint != "" {
-				docImage := DocImage{
-					Name:        f.Name,
-					Fingerprint: fingerprint,
-				}
-				d.images[docImage] = ""
-			}
+			d.images[NewDocImage(f)] = nil
 		}
 	}
 }
 
 func zipFileToFingerprint(f *zip.File) string {
 	r, err := f.Open()
+	defer r.Close()
 	if nil == err {
 		data := streamToByte(r)
 		if nil == err {
@@ -157,25 +158,27 @@ func (d *Docx) Save(ioWriter io.Writer) (err error) {
 			writer.Write([]byte(d.headers[file.Name]))
 		} else if strings.Contains(file.Name, "footer") && len(d.footers[file.Name]) != 0 {
 			writer.Write([]byte(d.footers[file.Name]))
-		} else if strings.HasPrefix(file.Name, "word/media/") {
-			fileDocImage := DocImage{
-				Name:        file.Name,
-				Fingerprint: zipFileToFingerprint(file),
+		} else if reader := getNewDocImageReader(d.images, file); reader != nil {
+			data, err := io.ReadAll(reader)
+			if err != nil {
+				continue
 			}
-			if image, ok := d.images[fileDocImage]; ok {
-				newImage, err := os.Open(image)
-				if err != nil {
-					return err
-				}
-				writer.Write(streamToByte(newImage))
-				newImage.Close()
-			}
+			writer.Write(data)
 		} else {
 			writer.Write(streamToByte(readCloser))
 		}
 	}
 	w.Close()
 	return
+}
+
+func getNewDocImageReader(images DocImageList, f *zip.File) io.Reader {
+	if strings.HasPrefix(f.Name, "word/media/") {
+		if reader, ok := images[NewDocImage(f)]; ok && nil != reader {
+			return reader
+		}
+	}
+	return nil
 }
 
 func (d *Docx) Replace(f ReplacerFunc) error {
@@ -202,20 +205,20 @@ func (d *Docx) Replace(f ReplacerFunc) error {
 	return nil
 }
 
-func (d *Docx) ReplaceImageByImageName(oldImageName string, newImageName string) (err error) {
+func (d *Docx) ReplaceImageByImageName(oldImageName string, newImage io.Reader) (err error) {
 	for image := range d.images {
 		if image.Name == oldImageName {
-			d.images[image] = newImageName
+			d.images[image] = newImage
 			return nil
 		}
 	}
 	return ErrImageNotFound
 }
 
-func (d *Docx) ReplaceImageByFingerPrint(oldImageFingerprint string, newImageName string) (err error) {
+func (d *Docx) ReplaceImageByFingerPrint(oldImageFingerprint string, newImage io.Reader) (err error) {
 	for image := range d.images {
 		if image.Fingerprint == oldImageFingerprint {
-			d.images[image] = newImageName
+			d.images[image] = newImage
 			return nil
 		}
 	}
