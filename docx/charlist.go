@@ -35,7 +35,7 @@ type CharList struct {
 
 type ReplacerFunc func(placeholder string) (string, bool)
 
-func NewReplacerFunc(model interface{}) (ReplacerFunc, error) {
+func NewStructReplacerFunc(model interface{}) (ReplacerFunc, error) {
 	strct, err := samdoc.NewStructure(model)
 	if err != nil {
 		return nil, err

@@ -19,7 +19,7 @@ func NewTemplate(reader io.Reader) (*Template, error) {
 		return nil, err
 	}
 
-	doc, err := Open(bytes.NewReader(d), int64(len(d)))
+	doc, err := NewDocxFromStream(bytes.NewReader(d), int64(len(d)))
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func NewTemplate(reader io.Reader) (*Template, error) {
 }
 
 func (t *Template) rawExecute(model interface{}) error {
-	repfunc, err := NewReplacerFunc(model)
+	repfunc, err := NewStructReplacerFunc(model)
 	if err != nil {
 		return err
 	}
