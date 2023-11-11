@@ -35,7 +35,7 @@ type CharList struct {
 
 type ReplacerFunc func(placeholder string) (string, bool)
 
-func NewReplacerFunc(model interface{}) (ReplacerFunc, error) {
+func NewStructReplacerFunc(model interface{}) (ReplacerFunc, error) {
 	strct, err := samdoc.NewStructure(model)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (l *CharList) LoadFromElement(con *xml.UniversalElement) {
 	for _, p := range con.Children {
 		if p.XMLName == "w:p" {
 			for _, r := range p.Children {
-				if r.XMLName == "w:r" {
+				if r.XMLName == "w:r" || r.XMLName == "w:hyperlink" {
 					nump++
 					t := r.GetElementByName("w:t")
 					if t == nil {
@@ -315,6 +315,10 @@ func NewParagraph(p, r, t *xml.UniversalElement) *Paragraph {
 }
 
 func (p *Paragraph) Insert(char *Char) {
+	if char.Rune == 0 {
+		p.Children = append(p.Children, char.R)
+		return
+	}
 	if char.R != p.ControlR {
 		p.ControlR = char.R
 		p.Children = append(p.Children, &xml.UniversalElement{
@@ -324,9 +328,6 @@ func (p *Paragraph) Insert(char *Char) {
 				p.ControlR.GetElementByName("w:rPr"),
 			},
 		})
-	}
-	if char.Rune == 0 {
-		return
 	}
 	if p.Children[p.LenChildren()-1].GetElementByName("w:t") == nil {
 		p.ControlT = char.T

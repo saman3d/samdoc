@@ -19,7 +19,7 @@ func NewTemplate(reader io.Reader) (*Template, error) {
 		return nil, err
 	}
 
-	doc, err := Open(bytes.NewReader(d), int64(len(d)))
+	doc, err := NewDocxFromStream(bytes.NewReader(d), int64(len(d)))
 	if err != nil {
 		return nil, err
 	}
@@ -27,17 +27,29 @@ func NewTemplate(reader io.Reader) (*Template, error) {
 	return &Template{File: doc}, nil
 }
 
-func (t *Template) rawExecute(model interface{}) error {
-	repfunc, err := NewReplacerFunc(model)
+func (t *Template) rawExecute(model interface{}, exts ...TemplateExecuteExtension) error {
+	repfunc, err := NewStructReplacerFunc(model)
 	if err != nil {
 		return err
 	}
 
-	return t.File.Replace(repfunc)
+	err = t.File.Replace(repfunc)
+	if err != nil {
+		return err
+	}
+
+	for _, ext := range exts {
+		err = ext(t)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (t *Template) ExecuteToWriter(model interface{}, writer io.Writer) error {
-	err := t.rawExecute(model)
+func (t *Template) ExecuteToWriter(model interface{}, writer io.Writer, exts ...TemplateExecuteExtension) error {
+	err := t.rawExecute(model, exts...)
 	if err != nil {
 		return err
 	}
@@ -45,8 +57,8 @@ func (t *Template) ExecuteToWriter(model interface{}, writer io.Writer) error {
 	return t.File.Save(writer)
 }
 
-func (t *Template) ExecuteToPDF(model interface{}) ([]byte, error) {
-	err := t.rawExecute(model)
+func (t *Template) ExecuteToPDF(model interface{}, exts ...TemplateExecuteExtension) ([]byte, error) {
+	err := t.rawExecute(model, exts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,4 +88,32 @@ func (t *Template) ExecuteToPDF(model interface{}) ([]byte, error) {
 	defer closeAndDelete(pdfile)
 
 	return io.ReadAll(pdfile)
+}
+
+type TemplateExecuteExtension func(*Template) error
+
+func WithImageReplaceByFingerprint(ims map[string]io.Reader) TemplateExecuteExtension {
+	return func(t *Template) error {
+		for fingerprint, image := range ims {
+			err := t.File.ReplaceImageByFingerPrint(fingerprint, image)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+func WithImageReplaceByName(ims map[string]io.Reader) TemplateExecuteExtension {
+	return func(t *Template) error {
+		for name, image := range ims {
+			err := t.File.ReplaceImageByFingerPrint(name, image)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 }
