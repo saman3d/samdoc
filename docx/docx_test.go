@@ -31,8 +31,14 @@ func TestReplaceImageByImageName(t *testing.T) {
 	testFileTemplate, err := NewTemplate(readerTestFile)
 	assert.Nil(t, err)
 	assert.NotNil(t, testFileTemplate)
-	testFileTemplate.File.ReplaceImageByImageName(testOldImage, filePathToReader(newTestImage))
-	testFileTemplate.File.WriteToFile(testFileResult)
+	result, err := os.Create(testFileResult)
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
+	err = testFileTemplate.ExecuteToWriter(nil, result, WithImageReplaceByName(map[string]io.Reader{
+		testOldImage: filePathToReader(newTestImage),
+	}))
+	assert.Nil(t, err)
+	result.Close()
 
 	readerTestFileResult, err := ReadFile(testFileResult)
 	assert.Nil(t, err)
@@ -53,8 +59,19 @@ func TestReplaceImageByFingerPrint(t *testing.T) {
 	tmp, err := NewTemplate(reader)
 	assert.Nil(t, err)
 	assert.NotNil(t, tmp)
-	tmp.File.ReplaceImageByFingerPrint(filePathToFingerprint(oldTestImage), filePathToReader(newTestImage))
-	tmp.File.WriteToFile(testFileResult)
+
+	type S struct {
+		ContractDate string
+	}
+
+	result, err := os.Create(testFileResult)
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
+	err = tmp.ExecuteToWriter(&S{ContractDate: "saman"}, result, WithImageReplaceByFingerprint(map[string]io.Reader{
+		filePathToFingerprint(oldTestImage): filePathToReader(newTestImage),
+	}))
+	assert.Nil(t, err)
+	result.Close()
 
 	readerTestFileResult, err := ReadFile(testFileResult)
 	assert.Nil(t, err)

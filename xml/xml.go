@@ -243,6 +243,9 @@ func (u *UniversalElement) XMLUnmarshal(e *XMLDecoder, start StartTag) error {
 }
 
 func (u *UniversalElement) XMLMarshal(e *XMLEncoder) error {
+	if u == nil {
+		return nil
+	}
 	t := StartTag{
 		Tagname: u.XMLName,
 		Attrs:   u.Attrs,
