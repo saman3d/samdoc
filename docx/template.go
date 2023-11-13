@@ -108,7 +108,7 @@ func WithImageReplaceByFingerprint(ims map[string]io.Reader) TemplateExecuteExte
 func WithImageReplaceByName(ims map[string]io.Reader) TemplateExecuteExtension {
 	return func(t *Template) error {
 		for name, image := range ims {
-			err := t.File.ReplaceImageByFingerPrint(name, image)
+			err := t.File.ReplaceImageByImageName(name, image)
 			if err != nil {
 				return err
 			}
