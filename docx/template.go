@@ -2,6 +2,7 @@ package docx
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -28,6 +29,7 @@ func NewTemplate(reader io.Reader) (*Template, error) {
 }
 
 func (t *Template) rawExecute(model interface{}, exts ...TemplateExecuteExtension) error {
+	errs := errors.New("")
 	repfunc, err := NewStructReplacerFunc(model)
 	if err != nil {
 		return err
@@ -35,26 +37,32 @@ func (t *Template) rawExecute(model interface{}, exts ...TemplateExecuteExtensio
 
 	err = t.File.Replace(repfunc)
 	if err != nil {
-		return err
+		errors.Join(errs, err)
 	}
 
 	for _, ext := range exts {
 		err = ext(t)
 		if err != nil {
-			return err
+			errors.Join(errs, err)
 		}
 	}
 
-	return nil
+	return errs
 }
 
 func (t *Template) ExecuteToWriter(model interface{}, writer io.Writer, exts ...TemplateExecuteExtension) error {
+	var errs error
 	err := t.rawExecute(model, exts...)
 	if err != nil {
-		return err
+		errors.Join(errs, err)
 	}
 
-	return t.File.Save(writer)
+	err = t.File.Save(writer)
+	if err != nil {
+		errors.Join(errs, err)
+	}
+
+	return errs
 }
 
 func (t *Template) ExecuteToPDF(model interface{}, exts ...TemplateExecuteExtension) ([]byte, error) {
