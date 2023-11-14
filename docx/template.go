@@ -29,7 +29,7 @@ func NewTemplate(reader io.Reader) (*Template, error) {
 }
 
 func (t *Template) rawExecute(model interface{}, exts ...TemplateExecuteExtension) error {
-	errs := errors.New("")
+	var errs error
 	repfunc, err := NewStructReplacerFunc(model)
 	if err != nil {
 		return err
