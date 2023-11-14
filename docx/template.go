@@ -37,13 +37,13 @@ func (t *Template) rawExecute(model interface{}, exts ...TemplateExecuteExtensio
 
 	err = t.File.Replace(repfunc)
 	if err != nil {
-		errors.Join(errs, err)
+		errs = errors.Join(errs, err)
 	}
 
 	for _, ext := range exts {
 		err = ext(t)
 		if err != nil {
-			errors.Join(errs, err)
+			errs = errors.Join(errs, err)
 		}
 	}
 
@@ -54,12 +54,12 @@ func (t *Template) ExecuteToWriter(model interface{}, writer io.Writer, exts ...
 	var errs error
 	err := t.rawExecute(model, exts...)
 	if err != nil {
-		errors.Join(errs, err)
+		errs = errors.Join(errs, err)
 	}
 
 	err = t.File.Save(writer)
 	if err != nil {
-		errors.Join(errs, err)
+		errs = errors.Join(errs, err)
 	}
 
 	return errs
