@@ -14,6 +14,7 @@ import (
 var (
 	ErrCouldntFindWordDoc = errors.New("invalid docx file, couldn't find word document xml")
 	ErrImageNotFound      = errors.New("image not found")
+	ErrFatalFailure       = errors.New("fatal failure")
 )
 
 type Docx struct {
