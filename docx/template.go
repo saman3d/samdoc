@@ -59,43 +59,49 @@ func (t *Template) ExecuteToWriter(model interface{}, writer io.Writer, exts ...
 
 	err = t.File.Save(writer)
 	if err != nil {
-		errs = errors.Join(errs, err)
+		return errors.Join(ErrFatalFailure, err)
 	}
 
 	return errs
 }
 
 func (t *Template) ExecuteToPDF(model interface{}, exts ...TemplateExecuteExtension) ([]byte, error) {
+	var errs error
 	err := t.rawExecute(model, exts...)
 	if err != nil {
-		return nil, err
+		errs = errors.Join(errs, err)
 	}
 
 	docx, err := samdoc.NewTempFile()
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrFatalFailure, err)
 	}
-	defer closeAndDelete(docx)
+	// defer closeAndDelete(docx)
 
 	err = t.File.Save(docx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrFatalFailure, err)
 	}
 
 	cmd := exec.Command("lowriter", "--convert-to", "pdf", docx.Name())
 	cmd.Dir = samdoc.TEMPDIR
 	err = cmd.Run()
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrFatalFailure, err)
 	}
 
 	pdfile, err := os.Open(docx.Name() + ".pdf")
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrFatalFailure, err)
 	}
 	defer closeAndDelete(pdfile)
 
-	return io.ReadAll(pdfile)
+	b, err := io.ReadAll(pdfile)
+	if err != nil {
+		return nil, errors.Join(ErrFatalFailure, err)
+	}
+
+	return b, nil
 }
 
 type TemplateExecuteExtension func(*Template) error
